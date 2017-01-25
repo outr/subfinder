@@ -1,0 +1,94 @@
+package tv.nabo.subtitlefinder
+
+import java.nio.charset.Charset
+
+import gigahorse.support.asynchttpclient.Gigahorse
+
+import scala.collection.immutable.Seq
+import scala.concurrent.{Await, Future}
+import scala.concurrent.duration._
+import scala.xml.XML
+import scala.concurrent.ExecutionContext.Implicits.global
+
+class OpenSubtitlesRPC(language: String = "en", userAgent: String = "SubtitleFinder") {
+  def login(username: String = "",
+            password: String = ""): Future[String] = {
+    val http = Gigahorse.http(Gigahorse.config)
+    val content = <methodCall>
+      <methodName>LogIn</methodName>
+      <params>
+        <param>
+          <value><string>{username}</string></value>
+        </param>
+        <param>
+          <value><string>{password}</string></value>
+        </param>
+        <param>
+          <value><string>{language}</string></value>
+        </param>
+        <param>
+          <value><string>{userAgent}</string></value>
+        </param>
+      </params>
+    </methodCall>.toString()
+    val request = Gigahorse.url("http://api.opensubtitles.org/xml-rpc")
+      .post(content, Charset.forName("UTF-8"))
+      .withContentType("text/xml")
+      .withRequestTimeout(15.seconds)
+      .withFollowRedirects(true)
+    val future = http.processFull(request, Gigahorse.asString)
+    future.onComplete(_ => http.close())
+    future.map(XML.loadString).map { xml =>
+      ((xml \\ "member").head \ "value" \ "string").text
+    }
+  }
+
+  def search(token: String, hash: String, sizeInBytes: Long): Future[Seq[String]] = {
+    val http = Gigahorse.http(Gigahorse.config)
+    val content = <methodCall>
+      <methodName>SearchSubtitles</methodName>
+      <params>
+        <param>
+          <value><string>{token}</string></value>
+        </param>
+        <param>
+          <value>
+            <array>
+              <data>
+                <value>
+                  <struct>
+                    <member>
+                      <name>sublanguageid</name>
+                      <value><string>{language}</string>
+                      </value>
+                    </member>
+                    <member>
+                      <name>moviehash</name>
+                      <value><string>{hash}</string></value>
+                    </member>
+                    <member>
+                      <name>moviebytesize</name>
+                      <value><double>{sizeInBytes}</double></value>
+                    </member>
+                  </struct>
+                </value>
+              </data>
+            </array>
+          </value>
+        </param>
+      </params>
+    </methodCall>.toString()
+    val request = Gigahorse.url("http://api.opensubtitles.org/xml-rpc")
+      .post(content, Charset.forName("UTF-8"))
+      .withContentType("text/xml")
+      .withRequestTimeout(15.seconds)
+      .withFollowRedirects(true)
+    val future = http.processFull(request, Gigahorse.asString)
+    future.onComplete(_ => http.close())
+    future.map(XML.loadString).map { xml =>
+      (((xml \\ "member")(1) \\ "struct").head \\ "member").collect {
+        case member if (member \ "name").text == "ZipDownloadLink" => (member \ "value" \ "string").text
+      }
+    }
+  }
+}
