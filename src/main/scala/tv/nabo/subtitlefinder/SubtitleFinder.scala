@@ -21,6 +21,7 @@ object SubtitleFinder {
       val rpc = new OpenSubtitlesRPC()
       val future = rpc.login().flatMap { token =>
         rpc.search(token, hash, video.length())
+//        rpc.quickSuggest(token, "the magnificent seven 2016")
       }
       val matches = Await.result(future, 30.seconds)
       if (matches.isEmpty) {

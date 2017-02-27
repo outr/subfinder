@@ -10,7 +10,7 @@ import scala.concurrent.duration._
 import scala.xml.XML
 import scala.concurrent.ExecutionContext.Implicits.global
 
-class OpenSubtitlesRPC(language: String = "en", userAgent: String = "SubtitleFinder") {
+class OpenSubtitlesRPC(language: String = "eng", userAgent: String = "SubtitleFinder") {
   def login(username: String = "",
             password: String = ""): Future[String] = {
     val http = Gigahorse.http(Gigahorse.config)
@@ -38,7 +38,13 @@ class OpenSubtitlesRPC(language: String = "en", userAgent: String = "SubtitleFin
       .withFollowRedirects(true)
     val future = http.processFull(request, Gigahorse.asString)
     future.onComplete(_ => http.close())
-    future.map(XML.loadString).map { xml =>
+    future.map { xmlString =>
+      try {
+        XML.loadString(xmlString)
+      } catch {
+        case t: Throwable => throw new RuntimeException(s"Failed to parse XML: [$xmlString]")
+      }
+    }.map { xml =>
       ((xml \\ "member").head \ "value" \ "string").text
     }
   }
@@ -86,9 +92,80 @@ class OpenSubtitlesRPC(language: String = "en", userAgent: String = "SubtitleFin
     val future = http.processFull(request, Gigahorse.asString)
     future.onComplete(_ => http.close())
     future.map(XML.loadString).map { xml =>
-      (((xml \\ "member")(1) \\ "struct").head \\ "member").collect {
-        case member if (member \ "name").text == "ZipDownloadLink" => (member \ "value" \ "string").text
+      val values = xml \ "params" \ "param" \ "value" \ "struct" \ "member" \ "value" \ "array" \ "data" \ "value"
+      val zipURLs = values.flatMap { value =>
+        val members = value \ "struct" \ "member"
+        val languageId = members.collectFirst {
+          case member if (member \ "name").text == "SubLanguageID" => (member \ "value" \ "string").text
+        }
+        if (languageId.contains(language)) {
+          members.collectFirst {
+            case member if (member \ "name").text == "ZipDownloadLink" => (member \ "value" \ "string").text
+          }
+        } else {
+          println(s"Excluding language: $languageId is not $language")
+          None
+        }
       }
+      zipURLs
+    }
+  }
+
+  def quickSuggest(token: String, query: String): Future[Seq[String]] = {
+    val http = Gigahorse.http(Gigahorse.config)
+    val content = <methodCall>
+      <methodName>QuickSuggest</methodName>
+      <params>
+        <param>
+          <value><string>{token}</string></value>
+        </param>
+        <param>
+          <value>
+            <array>
+              <data>
+                <value>
+                  <struct>
+                    <member>
+                      <name>sublanguageid</name>
+                      <value><string>{language}</string>
+                      </value>
+                    </member>
+                    <member>
+                      <name>string</name>
+                      <value><string>{query}</string></value>
+                    </member>
+                  </struct>
+                </value>
+              </data>
+            </array>
+          </value>
+        </param>
+      </params>
+    </methodCall>.toString()
+    val request = Gigahorse.url("http://api.opensubtitles.org/xml-rpc")
+      .post(content, Charset.forName("UTF-8"))
+      .withContentType("text/xml")
+      .withRequestTimeout(15.seconds)
+      .withFollowRedirects(true)
+    val future = http.processFull(request, Gigahorse.asString)
+    future.onComplete(_ => http.close())
+    future.map(XML.loadString).map { xml =>
+      println(s"RESPONS: $xml")
+      val values = xml \ "params" \ "param" \ "value" \ "struct" \ "member" \ "value" \ "array" \ "data" \ "value"
+      val zipURLs = values.flatMap { value =>
+        val members = value \ "struct" \ "member"
+        val languageId = members.collectFirst {
+          case member if (member \ "name").text == "SubLanguageID" => (member \ "value" \ "string").text
+        }
+        if (languageId.contains(language)) {
+          members.collectFirst {
+            case member if (member \ "name").text == "ZipDownloadLink" => (member \ "value" \ "string").text
+          }
+        } else {
+          None
+        }
+      }
+      zipURLs
     }
   }
 }
