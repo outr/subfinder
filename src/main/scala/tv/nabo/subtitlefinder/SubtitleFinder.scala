@@ -1,11 +1,12 @@
+/*
 package tv.nabo.subtitlefinder
 
 import java.io.{File, FileNotFoundException}
 import java.net.{HttpURLConnection, URL}
 import java.nio.charset.Charset
 import java.util.zip.{ZipEntry, ZipFile}
-
 import org.powerscala.io._
+import tv.nabo.subfinder.FileHasher
 
 import scala.collection.JavaConverters._
 import scala.concurrent.Await
@@ -48,7 +49,7 @@ object SubtitleFinder {
         println(s"Skipping ${video.getName}, it already has subtitles")
       } else {
         println(s"Processing ${video.getName}...")
-        val hash = OpenSubtitlesHasher.computeHash(video)
+        val hash = FileHasher.computeHash(video)
         val rpc = new OpenSubtitlesRPC()
         val future = rpc.login().flatMap { token =>
           rpc.search(token, hash, video.length())
@@ -90,3 +91,4 @@ object SubtitleFinder {
     }
   }
 }
+*/

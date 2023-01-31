@@ -1,3 +1,4 @@
+/*
 package tv.nabo.subtitlefinder
 
 import java.nio.charset.Charset
@@ -168,4 +169,4 @@ class OpenSubtitlesRPC(language: String = "eng", userAgent: String = "SubtitleFi
       zipURLs
     }
   }
-}
+}*/

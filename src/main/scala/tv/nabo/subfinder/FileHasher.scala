@@ -1,18 +1,21 @@
-package tv.nabo.subtitlefinder
+package tv.nabo.subfinder
 
-import java.io.{FileInputStream, File}
-import java.nio.{LongBuffer, ByteOrder, ByteBuffer}
+import cats.effect.IO
+
+import java.nio.channels.FileChannel
 import java.nio.channels.FileChannel.MapMode
+import java.nio.file.{Files, Path}
+import java.nio.{ByteBuffer, ByteOrder, LongBuffer}
 import scala.math._
 
-object OpenSubtitlesHasher {
+object FileHasher {
   private val hashChunkSize = 64L * 1024L
 
-  def computeHash(file: File) : String = {
-    val fileSize = file.length
+  def apply(file: Path): IO[String] = IO.blocking {
+    val fileSize = Files.size(file)
     val chunkSizeForFile = min(fileSize, hashChunkSize)
 
-    val fileChannel = new FileInputStream(file).getChannel
+    val fileChannel = FileChannel.open(file)
 
     try {
       val head = computeHashForChunk(fileChannel.map(MapMode.READ_ONLY, 0, chunkSizeForFile))
@@ -24,7 +27,7 @@ object OpenSubtitlesHasher {
     }
   }
 
-  private def computeHashForChunk(buffer: ByteBuffer) : Long = {
+  private def computeHashForChunk(buffer: ByteBuffer): Long = {
     def doCompute(longBuffer: LongBuffer, hash: Long) : Long = {
       if (longBuffer.hasRemaining) {
         doCompute(longBuffer, hash + longBuffer.get)
