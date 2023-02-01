@@ -71,10 +71,10 @@ object Subfinder extends IOApp {
   } else {
     for {
       _ <- logger.info(s"Finding subtitles file for ${path.getFileName.toString}")
-      hash <- FileHasher(path) //"24.S02E01.Day.2_.8_00.A.M..-.9_00.A.M..720p.WEB-DL.DD5.1.H.264.mkv"))
+      hash <- FileHasher(path)
       fileIds <- fileIds(hash)
       _ <- fileIds.headOption match {
-        case Some(fileId) => download(fileId, Paths.get("."))
+        case Some(fileId) => download(fileId, path.getParent)
         case None => logger.warn(s"Nothing found for $path")
       }
     } yield {
@@ -83,9 +83,8 @@ object Subfinder extends IOApp {
   }
 
   override def run(args: List[String]): IO[ExitCode] = for {
-    _ <- IO(assert(args.length == 1, "Expected exactly one argument for the path to run in"))
     _ <- IO(Profig.initConfiguration())
-    path <- IO(Paths.get(args.head))
+    path <- IO(Paths.get(args.headOption.getOrElse(".")))
     _ <- loadFor(path)
     _ <- HttpClient.dispose()
   } yield {
