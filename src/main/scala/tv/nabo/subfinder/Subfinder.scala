@@ -34,15 +34,16 @@ object Subfinder extends IOApp {
         }
     }
 
-  private def download(fileId: Long, directory: Path): IO[Unit] = for {
+  private def download(videoFile: Path, fileId: Long): IO[Unit] = for {
     json <- HttpClient
       .url(url"https://api.opensubtitles.com/api/v1/download")
       .header("Api-Key", apiKey)
       .header(Headers.`Content-Type`(ContentType.`application/json`))
       .restful[Json, Json](obj("file_id" -> fileId))
     link = json("link").as[URL]
-    fileName = json("file_name").asString
-    file = directory.resolve(fileName)
+    videoFileName = videoFile.getFileName.toString
+    fileName = videoFileName.substring(0, videoFileName.lastIndexOf('.')) + ".srt"
+    file = videoFile.getParent.resolve(fileName)
     content <- HttpClient.url(link).send().map(_.content.get.asString)
     _ <- Streamer(content, file)
   } yield {
@@ -74,7 +75,7 @@ object Subfinder extends IOApp {
       hash <- FileHasher(path)
       fileIds <- fileIds(hash)
       _ <- fileIds.headOption match {
-        case Some(fileId) => download(fileId, path.getParent)
+        case Some(fileId) => download(path, fileId)
         case None => logger.warn(s"Nothing found for $path")
       }
     } yield {
