@@ -20,8 +20,23 @@ object Subfinder extends IOApp {
   private lazy val apiKey: String = Profig("apiKey").as[String]
   private val subURL: URL = url"https://api.opensubtitles.com/api/v1/subtitles"
 
-  private def fileIds(hash: String): IO[List[Long]] = HttpClient
-    .url(subURL.withParam("moviehash", hash))
+  private def fileIdFirst(hash: String): IO[Option[Long]] = fileIds(hash, includeAI = false, includeMachine = false).flatMap {
+    case Nil => fileIds(hash, includeAI = true, includeMachine = false).flatMap {
+      case Nil => fileIds(hash, includeAI = true, includeMachine = true).map(_.headOption)
+      case list => IO.pure(list.headOption)
+    }
+    case list => IO.pure(list.headOption)
+  }
+
+  private def fileIds(hash: String,
+                      includeAI: Boolean,
+                      includeMachine: Boolean): IO[List[Long]] = HttpClient
+    .url(subURL
+      .withParam("moviehash", hash)
+      .withParam("languages", "en")
+      .withParam("ai_translated", if (includeAI) "include" else "exclude")
+      .withParam("machine_translated", if (includeMachine) "include" else "exclude")
+    )
     .header("Api-Key", apiKey)
     .header(Headers.`Content-Type`(ContentType.`application/json`))
     .call[Json]
@@ -73,10 +88,10 @@ object Subfinder extends IOApp {
     for {
       _ <- logger.info(s"Finding subtitles file for ${path.getFileName.toString}")
       hash <- FileHasher(path)
-      fileIds <- fileIds(hash)
-      _ <- fileIds.headOption match {
+      fileId <- fileIdFirst(hash)
+      _ <- fileId match {
         case Some(fileId) => download(path, fileId)
-        case None => logger.warn(s"Nothing found for $path")
+        case None => logger.warn(s"Nothing found for $path ($hash)")
       }
     } yield {
       ()
