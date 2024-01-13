@@ -5,14 +5,16 @@ import cats.implicits._
 import fabric._
 import fabric.rw.Asable
 import profig.Profig
-import spice.http.Headers
+import spice.http.{Headers, HttpRequest, HttpResponse}
 import spice.http.client.HttpClient
 import spice.net._
 import scribe.cats.{io => logger}
+import spice.http.client.intercept.Interceptor
 import spice.streamer._
 
 import java.nio.file.{Files, Path, Paths}
 import scala.jdk.CollectionConverters._
+import scala.util.{Success, Try}
 
 object Subfinder extends IOApp {
   private val videoExtensions = Set("avi", "mkv")
@@ -38,6 +40,8 @@ object Subfinder extends IOApp {
       .withParam("machine_translated", if (includeMachine) "include" else "exclude")
     )
     .header("Api-Key", apiKey)
+    .removeHeader("User-Agent")
+    .header(Headers.Request.`User-Agent`("Subfinder v1.0.0"))
     .header(Headers.`Content-Type`(ContentType.`application/json`))
     .call[Json]
     .map { json =>
@@ -53,13 +57,15 @@ object Subfinder extends IOApp {
     json <- HttpClient
       .url(url"https://api.opensubtitles.com/api/v1/download")
       .header("Api-Key", apiKey)
+      .removeHeader("User-Agent")
+      .header(Headers.Request.`User-Agent`("Subfinder v1.0.0"))
       .header(Headers.`Content-Type`(ContentType.`application/json`))
       .restful[Json, Json](obj("file_id" -> fileId))
     link = json("link").as[URL]
     videoFileName = videoFile.getFileName.toString
     fileName = videoFileName.substring(0, videoFileName.lastIndexOf('.')) + ".srt"
     file = videoFile.getParent.resolve(fileName)
-    content <- HttpClient.url(link).send().map(_.content.get.asString)
+    content <- HttpClient.url(link).send().flatMap(_.content.get.asString)
     _ <- Streamer(content, file)
   } yield {
     ()

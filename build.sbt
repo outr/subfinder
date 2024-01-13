@@ -2,7 +2,7 @@ name := "subfinder"
 version := "2.0.0-SNAPSHOT"
 organization := "tv.nabo"
 
-scalaVersion := "2.13.10"
+scalaVersion := "2.13.12"
 
 fork := true
 outputStrategy := Some(StdoutOutput)
@@ -32,5 +32,5 @@ assemblyMergeStrategy := {
 }
 
 libraryDependencies ++= Seq(
-  "com.outr" %% "spice-client-okhttp" % "0.0.11-SNAPSHOT"
+  "com.outr" %% "spice-client-okhttp" % "0.1.11"
 )
