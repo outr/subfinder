@@ -32,5 +32,5 @@ assemblyMergeStrategy := {
 }
 
 libraryDependencies ++= Seq(
-  "com.outr" %% "spice-client-okhttp" % "0.1.12"
+  "com.outr" %% "spice-client-okhttp" % "0.5.0"
 )
