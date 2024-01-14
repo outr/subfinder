@@ -5,19 +5,18 @@ import cats.implicits._
 import fabric._
 import fabric.rw.Asable
 import profig.Profig
-import spice.http.{Headers, HttpRequest, HttpResponse}
+import spice.http.Headers
 import spice.http.client.HttpClient
 import spice.net._
 import scribe.cats.{io => logger}
-import spice.http.client.intercept.Interceptor
 import spice.streamer._
+import scala.sys.process._
 
 import java.nio.file.{Files, Path, Paths}
 import scala.jdk.CollectionConverters._
-import scala.util.{Success, Try}
 
 object Subfinder extends IOApp {
-  private val videoExtensions = Set("avi", "mkv")
+  private val videoExtensions = Set("avi", "mkv", "mp4")
 
   private lazy val apiKey: String = Profig("apiKey").as[String]
   private val subURL: URL = url"https://api.opensubtitles.com/api/v1/subtitles"
@@ -97,7 +96,11 @@ object Subfinder extends IOApp {
       fileId <- fileIdFirst(hash)
       _ <- fileId match {
         case Some(fileId) => download(path, fileId)
-        case None => logger.warn(s"Nothing found for $path ($hash)")
+        case None => logger
+          .warn(s"Nothing found for $path ($hash). Generating Subtitles...")
+          .map { _ =>
+            s"auto_subtitle --srt_only true \"${path.toFile.getCanonicalPath}\" -o \"${path.toFile.getParentFile.getCanonicalPath}\"".!
+          }
       }
     } yield {
       ()
