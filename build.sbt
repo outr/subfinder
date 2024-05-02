@@ -2,7 +2,7 @@ name := "subfinder"
 version := "2.0.0-SNAPSHOT"
 organization := "tv.nabo"
 
-scalaVersion := "2.13.12"
+scalaVersion := "2.13.14"
 
 fork := true
 outputStrategy := Some(StdoutOutput)
