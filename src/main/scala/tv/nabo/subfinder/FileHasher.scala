@@ -1,6 +1,6 @@
 package tv.nabo.subfinder
 
-import cats.effect.IO
+import rapid.Task
 
 import java.nio.channels.FileChannel
 import java.nio.channels.FileChannel.MapMode
@@ -11,7 +11,7 @@ import scala.math._
 object FileHasher {
   private val hashChunkSize = 64L * 1024L
 
-  def apply(file: Path): IO[String] = IO.blocking {
+  def apply(file: Path): Task[String] = Task {
     val fileSize = Files.size(file)
     val chunkSizeForFile = min(fileSize, hashChunkSize)
 
