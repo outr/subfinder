@@ -69,7 +69,7 @@ object Subfinder extends RapidApp {
     fileName = videoFileName.substring(0, videoFileName.lastIndexOf('.')) + s".en$extra.srt"
     file = new File(videoFile.toFile.getParent, fileName).toPath
     content <- HttpClient.url(link).send().flatMap(_.content.get.asString).handleError { throwable =>
-      throw new RuntimeException(s"Failed to download subtitle at $link")
+      throw new RuntimeException(s"Failed to download subtitle at $link", throwable)
     }
     _ <- Streamer(content, file)
   } yield {
